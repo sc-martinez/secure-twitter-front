@@ -11,7 +11,7 @@ var MessageApp = window.MessageApp || {};
     };
 
     var userPool;
-
+    
     if (!(_config.cognito.userPoolId &&
           _config.cognito.userPoolClientId &&
           _config.cognito.region)) {
@@ -24,14 +24,15 @@ var MessageApp = window.MessageApp || {};
     if (typeof AWSCognito !== 'undefined') {
         AWSCognito.config.region = _config.cognito.region;
     }
-
+    MessageApp.session = {};
+    MessageApp.cognitoUser = {};
     MessageApp.signOut = function signOut() {
         userPool.getCurrentUser().signOut();
     };
 
     MessageApp.authToken = new Promise(function fetchCurrentAuthToken(resolve, reject) {
         var cognitoUser = userPool.getCurrentUser();
-
+        MessageApp.cognitoUser = cognitoUser;
         if (cognitoUser) {
             cognitoUser.getSession(function sessionCallback(err, session) {
                 if (err) {
@@ -39,6 +40,7 @@ var MessageApp = window.MessageApp || {};
                 } else if (!session.isValid()) {
                     resolve(null);
                 } else {
+                    MessageApp.session = session;
                     resolve(session.getIdToken().getJwtToken());
                 }
             });

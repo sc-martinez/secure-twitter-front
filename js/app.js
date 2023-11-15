@@ -8,39 +8,64 @@ var MessageApp = window.MessageApp || {};
   const chatMessages = document.querySelector('.chat-messages')
   const chatInputForm = document.querySelector('.chat-input-form')
   const chatInput = document.querySelector('.chat-input')
-
-  const messages = JSON.parse(localStorage.getItem('messages')) || [];
+  const createChatMessageElement = (message) => `
+    <div class="message ${message.sender === MessageApp.cognitoUser.username ? 'blue-bg' : 'gray-bg'}">
+      <div class="message-sender">${message.sender}</div>
+      <div class="message-text">${message.comment}</div>
+    </div>
+  `
+  var messages = JSON.parse(localStorage.getItem('messages')) || [];
   var authToken;
 
+    function publishMessage(message){
+      chatMessages.innerHTML += createChatMessageElement(message)
+    }
+
     function loadMessages(){
+      //chatHeader.innerHTML = 'Loading Messages ......';
       $.ajax({
         method: 'GET',
         url: _config.api.invokeUrl + '/thread',
+        crossDomain: true,
         headers: {
             Authorization: authToken
         },
         contentType: 'application/json',
         success: (result) => {
-          console.log(result);
+          chatHeader.innerHTML = '';
+          messages = result;
+          localStorage.setItem('messages', JSON.stringify(messages))
+          chatInput.disabled = false;
+          chatMessages.innerHTML = "";
+          if(messages.length > 0){
+            messages[0].messages.forEach(publishMessage);
+          }
+          /*  Scroll to bottom of chat messages */
+          chatMessages.scrollTop = chatMessages.scrollHeight
         },
         error: function ajaxError(jqXHR, textStatus, errorThrown) {
             console.error('Error loading mesagges: ', textStatus, ', Details: ', errorThrown);
             console.error('Response: ', jqXHR.responseText);
         }
       });
+      setTimeout(loadMessages,1500);
     }
+  
+  
 
   function evalueateSession(){
     MessageApp.authToken.then(function setAuthToken(token) {
         if (token) {
+            chatInput.disabled = true;
             authToken = token;
-            chatInput.disabled = false;
             loginSelector.hidden = true;
+            registerSelector.hidden = true;
             logoutSelector.hidden = false;
             loadMessages();
         } else {
             chatInput.disabled = true;
             loginSelector.hidden = false;
+            registerSelector.hidden = false;
             logoutSelector.hidden = true;
         }
     }).catch(function handleTokenError(error) {
@@ -53,19 +78,7 @@ var MessageApp = window.MessageApp || {};
   
   
 
-  const createChatMessageElement = (message) => `
-    <div class="message ${message.sender === 'John' ? 'blue-bg' : 'gray-bg'}">
-      <div class="message-sender">${message.sender}</div>
-      <div class="message-text">${message.text}</div>
-      <div class="message-timestamp">${message.timestamp}</div>
-    </div>
-  `
-
-  window.onload = () => {
-    messages.forEach((message) => {
-      chatMessages.innerHTML += createChatMessageElement(message)
-    })
-  }
+ 
 
   MessageApp.messageSender = {};
 
@@ -84,26 +97,52 @@ var MessageApp = window.MessageApp || {};
       alert('Session has not been stablished, please log in or register')
     }
     e.preventDefault()
-
-    const timestamp = new Date().toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true })
-    const message = {
-      sender: messageSender,
-      text: chatInput.value,
-      timestamp,
+    if(messages.length == 0){
+      $.ajax({
+        method: 'POST',
+        url: _config.api.invokeUrl + '/thread/comment',
+        crossDomain: true,
+        headers: {
+            Authorization: authToken
+        },
+        data: JSON.stringify({
+            comment: chatInput.value,
+            owner: MessageApp.cognitoUser.username
+        }),
+        contentType: 'application/json',
+        success: function(response){
+          chatInputForm.reset()
+        },
+        error: function ajaxError(jqXHR, textStatus, errorThrown) {
+            console.error('Error requesting ride: ', textStatus, ', Details: ', errorThrown);
+            console.error('Response: ', jqXHR.responseText);
+        }
+      });
+    }
+    else{
+      $.ajax({
+        method: 'POST',
+        crossDomain: true,
+        url: _config.api.invokeUrl + '/thread/comment/'+messages[0].id,
+        headers: {
+            Authorization: authToken
+        },
+        data: JSON.stringify({
+            comment: chatInput.value,
+            sender: MessageApp.cognitoUser.username
+        }),
+        contentType: 'application/json',
+        success: function(response){
+          chatInputForm.reset()
+        },
+        error: function ajaxError(jqXHR, textStatus, errorThrown) {
+            console.error('Error requesting ride: ', textStatus, ', Details: ', errorThrown);
+            console.error('Response: ', jqXHR.responseText);
+        }
+      });
     }
 
-    /* Save message to local storage */
-    messages.push(message)
-    localStorage.setItem('messages', JSON.stringify(messages))
-
-    /* Add message to DOM */
-    chatMessages.innerHTML += createChatMessageElement(message)
-
-    /* Clear input field */
-    chatInputForm.reset()
-
-    /*  Scroll to bottom of chat messages */
-    chatMessages.scrollTop = chatMessages.scrollHeight
+    
   }
 
   chatInputForm.addEventListener('submit', sendMessage)
