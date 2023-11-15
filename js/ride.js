@@ -15,6 +15,7 @@ WildRydes.map = WildRydes.map || {};
         alert(error);
         window.location.href = '/signin.html';
     });
+    
     function requestUnicorn(pickupLocation) {
         $.ajax({
             method: 'POST',
@@ -56,6 +57,7 @@ WildRydes.map = WildRydes.map || {};
     // Register click handler for #request button
     $(function onDocReady() {
         $('#request').click(handleRequestClick);
+        $('#signOut').click(WildRydes.signOut);
         $(WildRydes.map).on('pickupChange', handlePickupChanged);
 
         WildRydes.authToken.then(function updateAuthMessage(token) {
