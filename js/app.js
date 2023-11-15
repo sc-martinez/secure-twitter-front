@@ -1,6 +1,7 @@
 var MessageApp = window.MessageApp || {};
 
 (function messageScopeWrapper($) {
+  MessageApp.userId = "";
   const loginSelector = document.querySelector('#login')
   const registerSelector = document.querySelector('#register')
   const logoutSelector = document.querySelector('#logout')
@@ -22,7 +23,6 @@ var MessageApp = window.MessageApp || {};
     }
 
     function loadMessages(){
-      //chatHeader.innerHTML = 'Loading Messages ......';
       $.ajax({
         method: 'GET',
         url: _config.api.invokeUrl + '/thread',
@@ -32,7 +32,6 @@ var MessageApp = window.MessageApp || {};
         },
         contentType: 'application/json',
         success: (result) => {
-          chatHeader.innerHTML = '';
           messages = result;
           localStorage.setItem('messages', JSON.stringify(messages))
           chatInput.disabled = false;
@@ -48,7 +47,29 @@ var MessageApp = window.MessageApp || {};
             console.error('Response: ', jqXHR.responseText);
         }
       });
-      setTimeout(loadMessages,1500);
+
+      $.ajax({
+        method: 'GET',
+        url: _config.api.invokeUrl + '/users',
+        crossDomain: true,
+        headers: {
+            Authorization: authToken
+        },
+        contentType: 'application/json',
+        success: (result) => {
+          chatHeader.innerHTML = 'Users Online: ' + result.length;
+          var user = result.filter((users)=>{ return users.name == MessageApp.cognitoUser.username; });
+          if(user.length > 0){
+            localStorage.setItem('userid', user[0].id); 
+          }
+        },
+        error: function ajaxError(jqXHR, textStatus, errorThrown) {
+            console.error('Error loading mesagges: ', textStatus, ', Details: ', errorThrown);
+            console.error('Response: ', jqXHR.responseText);
+        }
+      });
+
+      setTimeout(loadMessages,2500);
     }
   
   
@@ -61,7 +82,28 @@ var MessageApp = window.MessageApp || {};
             loginSelector.hidden = true;
             registerSelector.hidden = true;
             logoutSelector.hidden = false;
-            loadMessages();
+            $.ajax({
+              method: 'POST',
+              url: _config.api.invokeUrl + '/users',
+              crossDomain: true,
+              headers: {
+                  Authorization: authToken
+              },
+              data: JSON.stringify({
+                  name: MessageApp.cognitoUser.username,
+                  mail: MessageApp.cognitoUser.username.replace('-at-', '@'),
+                  image: 'something' 
+              }),
+              contentType: 'application/json',
+              success: function(response){
+                loadMessages();
+              },
+              error: function ajaxError(jqXHR, textStatus, errorThrown) {
+                  console.error('Error requesting ride: ', textStatus, ', Details: ', errorThrown);
+                  console.error('Response: ', jqXHR.responseText);
+              }
+            });
+            //loadMessages();
         } else {
             chatInput.disabled = true;
             loginSelector.hidden = false;
@@ -100,7 +142,7 @@ var MessageApp = window.MessageApp || {};
     if(messages.length == 0){
       $.ajax({
         method: 'POST',
-        url: _config.api.invokeUrl + '/thread/comment',
+        url: _config.api.invokeUrl + '/thread/',
         crossDomain: true,
         headers: {
             Authorization: authToken
@@ -152,7 +194,23 @@ var MessageApp = window.MessageApp || {};
   // Register click handler for #request button
   $(function onDocReady() {
     $('#logout').click(()=>{
-       window.location.reload();
+      $.ajax({
+        method: 'DELETE',
+        url: _config.api.invokeUrl + '/users/'+ localStorage.getItem('userid'),
+        crossDomain: true,
+        headers: {
+            Authorization: authToken
+        },
+        contentType: 'application/json',
+        success: (result) => {
+          window.location.reload();
+        },
+        error: function ajaxError(jqXHR, textStatus, errorThrown) {
+            console.error('Error loading mesagges: ', textStatus, ', Details: ', errorThrown);
+            console.error('Response: ', jqXHR.responseText);
+        }
+      });
+       
     });
   });
 

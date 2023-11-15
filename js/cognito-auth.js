@@ -83,6 +83,7 @@ var MessageApp = window.MessageApp || {};
             onSuccess: onSuccess,
             onFailure: onFailure
         });
+        
     }
 
     function verify(email, code, onSuccess, onFailure) {
